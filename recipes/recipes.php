@@ -2,16 +2,15 @@
 // recipes/recipes.php
 
 // Connect to DB (PDO)
-require_once __DIR__ . '/../inc/db.php';   // $pdo must be defined in this file
+require_once __DIR__ . '/../inc/db.php';   
 
 // --- Read input from query string (GET) ---
-$q    = trim($_GET['q'] ?? '');          // keyword
-$sort = $_GET['sort'] ?? 'time';         // 'time' or 'alpha'
+$q    = trim($_GET['q'] ?? '');          
+$sort = $_GET['sort'] ?? 'time';        
 
-// --- Build SQL query ---
-// We use joins so we can:
+// --- SQL query ---
 //  - search in ingredients
-//  - get category names for display (optional)
+//  - get category names for display 
 $sql = "
     SELECT 
         r.id,
@@ -40,7 +39,7 @@ if ($q !== '') {
     $params[':q'] = '%' . $q . '%';
 }
 
-// --- Group by recipe (because of joins) ---
+// --- Group by recipe ---
 $sql .= " GROUP BY r.id";
 
 // --- Sorting ---
@@ -169,7 +168,7 @@ $recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <p><?php echo nl2br(htmlspecialchars($recipe['description'])); ?></p>
                 <?php endif; ?>
 
-                <!-- details page (adjust path if your file is elsewhere) -->
+                <!-- details page  -->
                 <a href="recipe.php?id=<?php echo (int)$recipe['id']; ?>">View full recipe</a>
             </article>
         <?php endforeach; ?>
