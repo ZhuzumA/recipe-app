@@ -1,4 +1,21 @@
+<?php include "inc/header.php"; ?>
+
+<div class="card">
+    <h1>This Is Our First Recipe WebSite</h1>
+    <p>Your place to find and save great recipes.</p>
+
+    <form action="/recipe/recipes/search.php" method="get">
+        <input type="text" name="q" placeholder="Search recipes...">
+        <button class="btn">Search</button>
+    </form>
+</div>
+
+<?php include "inc/footer.php"; ?>
+
+
+
 <?php
+/*
 // Include the database connection file
 include('inc\db.php');
 
@@ -9,6 +26,7 @@ if ($pdo) {
     echo "Unable to connect";
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,3 +39,4 @@ if ($pdo) {
     <p><?php echo isset($pdo) ? 'Connected successfully!' : 'Unable to connect'; ?></p>
 </body>
 </html>
+*/
