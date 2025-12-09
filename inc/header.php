@@ -16,7 +16,7 @@ if (session_status() === PHP_SESSION_NONE) session_start();
         <a href="/recipe/index.php" class="logo">You are in the Best Place with the Best Recipes</a>
 
         <nav id="nav-menu" class="nav-links">
-            <a href="/recipe/recipes/recipes.php">Recipes</a>
+            <a href="recipes/recipes.php">Recipes</a>
 
             <?php if (!empty($_SESSION['user_id'])): ?>
                 <a href="/recipe/account.php">Account</a>

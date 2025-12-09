@@ -1,27 +1,29 @@
 <?php
 // recipes/recipes.php
 
-// Connect to DB (PDO)
-require_once __DIR__ . '/../inc/db.php';   
+// show errors while developing
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-// --- Read input from query string (GET) ---
-$q    = trim($_GET['q'] ?? '');          
-$sort = $_GET['sort'] ?? 'time';        
+// DB connection
+require_once __DIR__ . '/../inc/db.php';
 
-// --- SQL query ---
-//  - search in ingredients
-//  - get category names for display 
+// Read input
+$q          = trim($_GET['q'] ?? '');
+$difficulty = trim($_GET['difficulty'] ?? '');
+$maxTime    = trim($_GET['max_time'] ?? '');
+$sort       = $_GET['sort'] ?? '';
+
+// ---- BUILD SQL ----
 $sql = "
-    SELECT 
+    SELECT DISTINCT
         r.id,
         r.title,
         r.description,
         r.difficulty,
-        r.total_time_minutes,
-        GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS category_list
+        r.total_time_minutes
     FROM recipes r
-    LEFT JOIN recipe_categories rc ON rc.recipe_id = r.id
-    LEFT JOIN categories c         ON c.id = rc.category_id
     LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.id
     LEFT JOIN ingredients ing       ON ing.id = ri.ingredient_id
     WHERE 1 = 1
@@ -29,109 +31,77 @@ $sql = "
 
 $params = [];
 
-// --- Keyword search in title, description, ingredient name ---
+// Text search  🔧 FIXED HERE
 if ($q !== '') {
     $sql .= " AND (
-        r.title       LIKE :q
-        OR r.description LIKE :q
-        OR ing.name   LIKE :q
+        r.title       LIKE :q_title
+        OR r.description LIKE :q_desc
+        OR ing.name   LIKE :q_ing
     )";
-    $params[':q'] = '%' . $q . '%';
+
+    $like = '%' . $q . '%';
+    $params[':q_title'] = $like;
+    $params[':q_desc']  = $like;
+    $params[':q_ing']   = $like;
 }
 
-// --- Group by recipe ---
-$sql .= " GROUP BY r.id";
+// Difficulty filter
+if ($difficulty !== '') {
+    $sql .= " AND r.difficulty = :difficulty";
+    $params[':difficulty'] = $difficulty;
+}
 
-// --- Sorting ---
+// Max time filter
+if ($maxTime !== '' && is_numeric($maxTime)) {
+    $sql .= " AND r.total_time_minutes <= :max_time";
+    $params[':max_time'] = (int)$maxTime;
+}
+
+// Sorting
 switch ($sort) {
-    case 'alpha':
-        // Alphabetical A–Z by title
+    case 'newest':
+        $sql .= " ORDER BY r.id DESC";
+        break;
+    case 'oldest':
+        $sql .= " ORDER BY r.id ASC";
+        break;
+    case 'az':
         $sql .= " ORDER BY r.title ASC";
         break;
-    case 'time':
-    default:
-        // Shortest time first, then A–Z by title
+    case 'za':
+        $sql .= " ORDER BY r.title DESC";
+        break;
+    case 'easy_first':
+        $sql .= " ORDER BY FIELD(r.difficulty,'Easy','Medium','Hard')";
+        break;
+    case 'hard_first':
+        $sql .= " ORDER BY FIELD(r.difficulty,'Hard','Medium','Easy')";
+        break;
+    case 'time_low':
         $sql .= " ORDER BY r.total_time_minutes ASC, r.title ASC";
+        break;
+    case 'time_high':
+        $sql .= " ORDER BY r.total_time_minutes DESC, r.title ASC";
+        break;
+    default:
+        $sql .= " ORDER BY r.title ASC";
         break;
 }
 
-// --- Execute query ---
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Recipe Search</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            margin: 0;
-            padding: 1.5rem;
-            background: #f5f5f5;
-        }
-        h1 {
-            margin-bottom: 1rem;
-        }
-        .search-form {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-            padding: 0.75rem;
-            background: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-        .search-form input[type="text"] {
-            flex: 1 1 220px;
-            padding: 0.4rem 0.6rem;
-            font-size: 0.95rem;
-        }
-        .search-form select,
-        .search-form button {
-            padding: 0.4rem 0.6rem;
-            font-size: 0.95rem;
-        }
-        .search-form button {
-            cursor: pointer;
-        }
-        .recipes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-            gap: 1rem;
-        }
-        .recipe-card {
-            background: #ffffff;
-            padding: 0.9rem 1rem;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        }
-        .recipe-card h2 {
-            font-size: 1.1rem;
-            margin: 0 0 0.4rem;
-        }
-        .recipe-meta {
-            font-size: 0.85rem;
-            color: #555;
-            margin-bottom: 0.4rem;
-        }
-        .recipe-card a {
-            font-size: 0.9rem;
-            text-decoration: none;
-            color: #0066cc;
-        }
-    </style>
-</head>
-<body>
+try {
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die('Query failed: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES));
+}
 
-<h1>Recipes</h1>
+include __DIR__ . '/../inc/header.php';
+?>
+
+<h1>All Recipes</h1>
 
 <form method="get" action="recipes.php" class="search-form">
-    <!-- Keyword search -->
     <input
         type="text"
         name="q"
@@ -139,41 +109,72 @@ $recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         value="<?php echo htmlspecialchars($q, ENT_QUOTES); ?>"
     >
 
-    <!-- Sorting -->
+    <select name="difficulty">
+        <option value="" <?php if ($difficulty === '') echo 'selected'; ?>>Any Difficulty</option>
+        <option value="Easy"   <?php if ($difficulty === 'Easy')   echo 'selected'; ?>>Easy</option>
+        <option value="Medium" <?php if ($difficulty === 'Medium') echo 'selected'; ?>>Medium</option>
+        <option value="Hard"   <?php if ($difficulty === 'Hard')   echo 'selected'; ?>>Hard</option>
+    </select>
+
+    <input
+        type="number"
+        name="max_time"
+        placeholder="Max minutes"
+        min="1"
+        value="<?php echo htmlspecialchars($maxTime, ENT_QUOTES); ?>"
+    >
+
     <select name="sort">
-        <option value="time"  <?php if ($sort === 'time')  echo 'selected'; ?>>Shortest time first</option>
-        <option value="alpha" <?php if ($sort === 'alpha') echo 'selected'; ?>>Alphabetically (A–Z)</option>
+        <option value=""        <?php if ($sort === '')        echo 'selected'; ?>>Sort By</option>
+        <option value="newest"  <?php if ($sort === 'newest')  echo 'selected'; ?>>Newest First</option>
+        <option value="oldest"  <?php if ($sort === 'oldest')  echo 'selected'; ?>>Oldest First</option>
+        <option value="az"      <?php if ($sort === 'az')      echo 'selected'; ?>>A–Z</option>
+        <option value="za"      <?php if ($sort === 'za')      echo 'selected'; ?>>Z–A</option>
+        <option value="easy_first" <?php if ($sort === 'easy_first') echo 'selected'; ?>>
+            Difficulty: Easy → Hard
+        </option>
+        <option value="hard_first" <?php if ($sort === 'hard_first') echo 'selected'; ?>>
+            Difficulty: Hard → Easy
+        </option>
+        <option value="time_low"  <?php if ($sort === 'time_low')  echo 'selected'; ?>>
+            Time: Low → High
+        </option>
+        <option value="time_high" <?php if ($sort === 'time_high') echo 'selected'; ?>>
+            Time: High → Low
+        </option>
     </select>
 
     <button type="submit">Search</button>
 </form>
 
-<?php if (empty($recipes)): ?>
-    <p>No recipes found. Try a different keyword.</p>
-<?php else: ?>
-    <div class="recipes-grid">
-        <?php foreach ($recipes as $recipe): ?>
-            <article class="recipe-card">
-                <h2><?php echo htmlspecialchars($recipe['title']); ?></h2>
+<hr>
 
-                <div class="recipe-meta">
-                    <?php if (!empty($recipe['category_list'])): ?>
-                        <div>Categories: <?php echo htmlspecialchars($recipe['category_list']); ?></div>
-                    <?php endif; ?>
-                    <div>Time: <?php echo (int)$recipe['total_time_minutes']; ?> minutes</div>
-                    <div>Difficulty: <?php echo htmlspecialchars($recipe['difficulty']); ?></div>
-                </div>
+<?php if (empty($recipes)): ?>
+    <p>No recipes found.</p>
+<?php else: ?>
+    <ul class="recipe-list">
+        <?php foreach ($recipes as $recipe): ?>
+            <li class="recipe-card">
+                <h2>
+                    <a href="recipe.php?id=<?php echo (int)$recipe['id']; ?>">
+                        <?php echo htmlspecialchars($recipe['title'], ENT_QUOTES); ?>
+                    </a>
+                </h2>
 
                 <?php if (!empty($recipe['description'])): ?>
-                    <p><?php echo nl2br(htmlspecialchars($recipe['description'])); ?></p>
+                    <p><?php echo htmlspecialchars(substr($recipe['description'], 0, 150), ENT_QUOTES); ?>...</p>
                 <?php endif; ?>
 
-                <!-- details page  -->
-                <a href="recipe.php?id=<?php echo (int)$recipe['id']; ?>">View full recipe</a>
-            </article>
+                <p>
+                    Difficulty: <?php echo htmlspecialchars($recipe['difficulty'], ENT_QUOTES); ?>
+                    |
+                    Time: <?php echo (int)$recipe['total_time_minutes']; ?> min
+                </p>
+
+                <p><a href="recipe.php?id=<?php echo (int)$recipe['id']; ?>">View full recipe »</a></p>
+            </li>
         <?php endforeach; ?>
-    </div>
+    </ul>
 <?php endif; ?>
 
-</body>
-</html>
+<?php include __DIR__ . '/../inc/footer.php'; ?>
