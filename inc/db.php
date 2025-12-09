@@ -4,10 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$host    = 'localhost';          // your DB host
-$db      = 'recipe_web';         // your DB name
-$user    = 'root';               // your DB user
-$pass    = '';                   // your DB password
+$host    = 'localhost';          // DB host
+$db      = 'recipe_web';         //  DB name
+$user    = 'root';               //  DB user
+$pass    = '';                   //  DB password
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

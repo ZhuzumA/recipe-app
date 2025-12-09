@@ -1,7 +1,7 @@
 <?php
 // recipes/recipes.php
 
-// show errors while developing
+// show errors 
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -31,7 +31,7 @@ $sql = "
 
 $params = [];
 
-// Text search  🔧 FIXED HERE
+// Text search 
 if ($q !== '') {
     $sql .= " AND (
         r.title       LIKE :q_title

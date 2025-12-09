@@ -68,7 +68,7 @@ try {
         error_log('Steps query failed: '.$e->getMessage());
     }
 
-    // 5) Images (optional table – safe to fail)
+    // 5) Images 
     try {
         $sql_images = "
             SELECT image_url, caption
